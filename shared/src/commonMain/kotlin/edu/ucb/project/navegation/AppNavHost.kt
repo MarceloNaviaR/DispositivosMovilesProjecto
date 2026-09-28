@@ -7,7 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import org.koin.compose.viewmodel.koinViewModel
 import edu.ucb.project.feature.auth.login.presentation.viewmodel.LoginViewModel
 import edu.ucb.project.feature.auth.login.presentation.screen.LoginScreen
-
+import edu.ucb.project.feature.weather.presentation.screen.WeatherScreen
 
 
 @Composable
@@ -38,6 +38,14 @@ fun AppNavHost() {
                 viewModel = viewModel
 
             )
+
+            composable<NavRoute.Weather>{
+
+
+                WeatherScreen()
+
+
+            }
 
 
         }

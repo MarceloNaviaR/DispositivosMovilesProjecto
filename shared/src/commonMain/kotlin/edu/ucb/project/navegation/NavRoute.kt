@@ -13,6 +13,9 @@ sealed class NavRoute {
     data object Login: NavRoute()
 
 
+    @Serializable
+    data object Weather: NavRoute()
+
 
     @Serializable
     data object Profile: NavRoute()
