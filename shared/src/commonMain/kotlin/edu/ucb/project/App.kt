@@ -8,5 +8,6 @@ import edu.ucb.project.navigation.AppNavHost
 fun App() {
     MaterialTheme {
         AppNavHost()
+
     }
 }
