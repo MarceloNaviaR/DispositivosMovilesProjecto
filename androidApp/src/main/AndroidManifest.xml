@@ -24,7 +24,7 @@
 
         </activity>
         <activity
-            android:name=".feature.tareas.TareasActivity"
+            android:name=".feature.tareas.ActivityJobs"
             android:exported="false"
             android:launchMode="singleTop" />
     </application>

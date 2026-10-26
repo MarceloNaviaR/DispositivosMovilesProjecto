@@ -1,6 +1,6 @@
 package edu.ucb.project.feature.tareas
 
-data class Tarea(
+data class jobs(
     val id: String,
     val titulo: String,
     val completada: Boolean = false,

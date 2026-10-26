@@ -2,7 +2,7 @@ package edu.ucb.project.feature.tareas
 
 import android.content.Context
 
-class PreferenciasNotificaciones(context: Context) {
+class NotificationPreferences(context: Context) {
 
     private val preferencias =
         context.applicationContext.getSharedPreferences(

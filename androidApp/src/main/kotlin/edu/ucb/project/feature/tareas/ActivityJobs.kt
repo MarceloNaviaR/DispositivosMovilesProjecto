@@ -31,15 +31,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.ListenerRegistration
 
-class TareasActivity : ComponentActivity() {
+class ActivityJobs : ComponentActivity() {
 
-    private lateinit var repository: TareasRepository
-    private lateinit var preferencias: PreferenciasNotificaciones
-    private lateinit var notificador: TareasNotificador
+    private lateinit var repository: RepositoryJobs
+    private lateinit var preferencias: NotificationPreferences
+    private lateinit var notificador: NotificationJobs
 
     private var listener: ListenerRegistration? = null
 
-    private var tareas by mutableStateOf<List<Tarea>>(emptyList())
+    private var tareas by mutableStateOf<List<jobs>>(emptyList())
     private var titulo by mutableStateOf("")
     private var error by mutableStateOf<String?>(null)
     private var cargando by mutableStateOf(true)
@@ -60,9 +60,9 @@ class TareasActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        preferencias = PreferenciasNotificaciones(this)
-        notificador = TareasNotificador(this)
-        repository = TareasRepository()
+        preferencias = NotificationPreferences(this)
+        notificador = NotificationJobs(this)
+        repository = RepositoryJobs()
 
         silenciadas = preferencias.estanSilenciadas()
         actualizarEstadoPermiso()

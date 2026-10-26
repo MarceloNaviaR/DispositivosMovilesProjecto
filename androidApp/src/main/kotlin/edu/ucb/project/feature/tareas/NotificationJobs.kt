@@ -11,7 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 
-class TareasNotificador(context: Context) {
+class NotificationJobs(context: Context) {
 
     private val appContext = context.applicationContext
 
@@ -20,7 +20,7 @@ class TareasNotificador(context: Context) {
     ) as NotificationManager
 
     private val preferencias =
-        PreferenciasNotificaciones(appContext)
+        NotificationPreferences(appContext)
 
     init {
         crearCanal()
@@ -41,7 +41,7 @@ class TareasNotificador(context: Context) {
         }
     }
 
-    fun mostrarNuevaTarea(tarea: Tarea) {
+    fun mostrarNuevaTarea(tarea: jobs) {
         if (preferencias.estanSilenciadas()) {
             return
         }
@@ -61,7 +61,7 @@ class TareasNotificador(context: Context) {
 
         val intent = Intent(
             appContext,
-            TareasActivity::class.java
+            ActivityJobs::class.java
         ).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP

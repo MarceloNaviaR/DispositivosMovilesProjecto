@@ -1,5 +1,9 @@
 package edu.ucb.project
-
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -22,7 +26,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
-import edu.ucb.project.feature.tareas.TareasActivity
+import edu.ucb.project.feature.tareas.ActivityJobs
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,23 +42,32 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Column(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Button(
                         onClick = {
                             startActivity(
                                 Intent(
                                     this@MainActivity,
-                                    TareasActivity::class.java
+                                    ActivityJobs::class.java
                                 )
                             )
-                        }
+                        },
+                        modifier = Modifier.padding(
+                            top = 32.dp,
+                            bottom = 24.dp
+                        )
                     ) {
                         Text("Abrir tareas — E50-5")
                     }
 
                     Box(
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
                     ) {
                         App()
                     }

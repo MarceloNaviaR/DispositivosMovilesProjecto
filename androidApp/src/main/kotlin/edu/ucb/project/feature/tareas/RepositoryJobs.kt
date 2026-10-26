@@ -6,14 +6,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.MetadataChanges
 
-class TareasRepository {
+class RepositoryJobs {
 
     private val coleccion = FirebaseFirestore.getInstance()
         .collection("tareas")
 
     fun observar(
-        onLista: (List<Tarea>) -> Unit,
-        onNueva: (Tarea) -> Unit,
+        onLista: (List<jobs>) -> Unit,
+        onNueva: (jobs) -> Unit,
         onError: (String) -> Unit
     ): ListenerRegistration {
         var cargaInicialCompleta = false
@@ -36,7 +36,7 @@ class TareasRepository {
             }
 
             val tareas = snapshot.documents.map { documento ->
-                Tarea(
+                jobs(
                     id = documento.id,
                     titulo = documento.get("titulo") as? String
                         ?: "Sin título",
