@@ -5,6 +5,8 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import edu.ucb.project.feature.weather.presentation.viewmodel.WeatherViewModel
 import edu.ucb.project.feature.exchange.presentation.viewmodel.ExchangeViewModel
+import edu.ucb.project.feature.notification.presentation.viewmodel.NotificationViewModel
+
 val presentationModule = module {
 
 
@@ -26,6 +28,12 @@ val presentationModule = module {
 
     viewModel {
         ExchangeViewModel(
+            get()
+        )
+    }
+
+    viewModel {
+        NotificationViewModel(
             get()
         )
     }
