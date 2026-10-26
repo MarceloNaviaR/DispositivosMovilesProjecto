@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "124333961962",
+    "project_id": "dispositivos-moviles-23f66",
+    "storage_bucket": "dispositivos-moviles-23f66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124333961962:android:d48a1dbad3bd85c3bfdd93",
+        "android_client_info": {
+          "package_name": "edu.ucb.project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBm3MAIcnQLjdNtRzhZRFicENpms6idiPU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
