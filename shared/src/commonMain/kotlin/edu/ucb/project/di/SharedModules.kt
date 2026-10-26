@@ -9,7 +9,8 @@ fun sharedModules(): List<Module> {
         platformModule(),
         dataModule,
         domainModule,
-        presentationModule
+        presentationModule,
+        configModule
     )
 
 }
