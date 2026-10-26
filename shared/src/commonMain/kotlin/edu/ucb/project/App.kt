@@ -8,8 +8,8 @@ import edu.ucb.project.roomastruth.presentation.screen.ConfigScreen
 @Composable
 fun App() {
     MaterialTheme {
-        ConfigScreen()
-        //AppNavHost()
+
+        AppNavHost()
 
     }
 }
