@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "dispositivos-moviles-project",
-    "storage_bucket": "dispositivos-moviles-project.appspot.com"
+    "project_number": "124333961962",
+    "project_id": "dispositivos-moviles-23f66",
+    "storage_bucket": "dispositivos-moviles-23f66.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "mobilesdk_app_id": "1:124333961962:android:d48a1dbad3bd85c3bfdd93",
         "android_client_info": {
           "package_name": "edu.ucb.project"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyApiKeyForLocalBuild123456"
+          "current_key": "AIzaSyBm3MAIcnQLjdNtRzhZRFicENpms6idiPU"
         }
       ],
       "services": {
