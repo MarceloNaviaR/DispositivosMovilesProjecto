@@ -10,6 +10,5 @@ fun App() {
     MaterialTheme {
 
         AppNavHost()
-
     }
 }

@@ -25,41 +25,26 @@ fun LoginScreen(
 
 
     LoginContent(
-
-
         username = state.username,
-
-
         password = state.password,
-
-
         onUsernameChange = {
-
             viewModel.onEvent(
                 LoginEvent.UsernameChanged(it)
             )
-
         },
-
-
         onPasswordChange = {
-
             viewModel.onEvent(
                 LoginEvent.PasswordChanged(it)
             )
-
         },
-
-
         onLoginClick = {
-
             viewModel.onEvent(
                 LoginEvent.LoginClicked
             )
-
+        },
+        onNotificationClick = {
+            navController.navigate(NavRoute.Notification)
         }
-
-
     )
 
 

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "cdcc03a2c3bcf8a9fc72092c794f3d4e",
+    "identityHash": "6f37b3f33796772740a78f114af4455e",
     "entities": [
       {
         "tableName": "weather",
@@ -63,58 +63,11 @@
             "id"
           ]
         }
-      },
-      {
-        "tableName": "config_item",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clave` TEXT NOT NULL, `valor` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "clave",
-            "columnName": "clave",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "valor",
-            "columnName": "valor",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "timestamp",
-            "columnName": "timestamp",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_config_item_clave",
-            "unique": true,
-            "columnNames": [
-              "clave"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_config_item_clave` ON `${TABLE_NAME}` (`clave`)"
-          }
-        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cdcc03a2c3bcf8a9fc72092c794f3d4e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6f37b3f33796772740a78f114af4455e')"
     ]
   }
 }

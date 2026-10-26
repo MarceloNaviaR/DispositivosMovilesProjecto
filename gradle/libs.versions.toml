@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.2"
+agp = "9.3.3"
 android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
@@ -23,6 +23,11 @@ room3 = "3.1.0-alpha01"
 sqlite = "2.7.1"
 coroutines = "1.10.2"
 googleServices = "4.4.2"
+workRuntimeKtx = "2.11.0"
+grpc = "1.67.1"
+grpcKotlin = "1.4.1"
+protobuf = "3.25.1"
+protobufPlugin = "0.10.0"
 
 [libraries]
 firebase-database = { module = "dev.gitlive:firebase-database", version.ref = "firebaseDatabase" }
@@ -58,6 +63,13 @@ androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.r
 androidx-room3-runtime = { module = "androidx.room3:room3-runtime", version.ref = "room3" }
 androidx-room3-compiler = { module = "androidx.room3:room3-compiler", version.ref = "room3" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
+grpc-okhttp = { module = "io.grpc:grpc-okhttp", version.ref = "grpc" }
+grpc-protobuf-lite = { module = "io.grpc:grpc-protobuf-lite", version.ref = "grpc" }
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpcKotlin" }
+protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "protobuf" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
+
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
@@ -68,3 +80,4 @@ kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", versio
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room3 = { id = "androidx.room3", version.ref = "room3" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+google-protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }

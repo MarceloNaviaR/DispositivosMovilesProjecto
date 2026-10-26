@@ -1,59 +1,41 @@
 package edu.ucb.project.navigation
+
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
 import org.koin.compose.viewmodel.koinViewModel
 import edu.ucb.project.feature.auth.login.presentation.viewmodel.LoginViewModel
 import edu.ucb.project.feature.auth.login.presentation.screen.LoginScreen
 import edu.ucb.project.feature.weather.presentation.screen.WeatherScreen
-import edu.ucb.project.roomastruth.presentation.screen.ConfigScreen
-
+import edu.ucb.project.feature.notification.presentation.screen.NotificationScreen
 
 @Composable
 fun AppNavHost() {
 
-
     val navController = rememberNavController()
-
-
 
     NavHost(
         navController = navController,
         startDestination = NavRoute.Login
     ) {
 
-
-
         composable<NavRoute.Login> {
-
-
             val viewModel = koinViewModel<LoginViewModel>()
-
-
             LoginScreen(
-
                 navController = navController,
-
                 viewModel = viewModel
-
             )
-
-            composable<NavRoute.Weather>{
-
-
-                WeatherScreen()
-
-
-            }
-            composable<NavRoute.Config> {
-                ConfigScreen()
-            }
-
-
         }
 
-    }
+        composable<NavRoute.Weather> {
+            WeatherScreen()
+        }
 
+        composable<NavRoute.Notification> {
+            NotificationScreen(
+                navController = navController
+            )
+        }
+    }
 }
