@@ -29,5 +29,10 @@ val presentationModule = module {
             get()
         )
     }
+    viewModel {
+        ExchangeViewModel(
+            get()
+        )
+    }
 
 }

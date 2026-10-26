@@ -6,15 +6,19 @@ import androidx.room3.RoomDatabase
 import androidx.room3.RoomDatabaseConstructor
 import edu.ucb.project.feature.weather.data.dao.WeatherDao
 import edu.ucb.project.feature.weather.data.entity.WeatherEntity
+import edu.ucb.project.roomastruth.data.dao.ConfigDao
+import edu.ucb.project.roomastruth.data.entity.ConfigItemEntity
 
 @Database(
-    entities = [WeatherEntity::class],
-    version = 1
+    entities = [WeatherEntity::class, ConfigItemEntity::class],
+    version = 2
 )
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun getDao(): WeatherDao
+
+    abstract fun configDao(): ConfigDao
 }
 
 @Suppress("KotlinNoActualForExpect")

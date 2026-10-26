@@ -25,5 +25,6 @@ sealed class NavRoute {
     @Serializable
     data object ProfileEdit: NavRoute()
 
-
+    @Serializable
+    data object Config: NavRoute()
 }
