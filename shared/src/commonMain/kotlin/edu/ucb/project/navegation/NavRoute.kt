@@ -19,4 +19,6 @@ sealed class NavRoute {
 
     @Serializable
     data object Notification: NavRoute()
+    @Serializable
+    data object Configuration: NavRoute()
 }

@@ -44,6 +44,9 @@ fun LoginScreen(
         },
         onNotificationClick = {
             navController.navigate(NavRoute.Notification)
+        },
+        onConfigurationClick = {
+            navController.navigate(NavRoute.Configuration)
         }
     )
 
