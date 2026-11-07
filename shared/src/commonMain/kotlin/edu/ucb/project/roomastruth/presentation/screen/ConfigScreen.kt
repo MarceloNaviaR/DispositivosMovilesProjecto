@@ -27,13 +27,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import edu.ucb.project.roomastruth.presentation.composable.AddConfigForm
 import edu.ucb.project.roomastruth.presentation.composable.ConfigItemRow
 import edu.ucb.project.roomastruth.presentation.state.ConfigViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ConfigScreen(viewModel: ConfigViewModel = koinViewModel()) {
+fun ConfigScreen(
+    navController: NavHostController,
+    viewModel: ConfigViewModel = koinViewModel()
+) {
 
     // Reactivo: la UI se recompone cada vez que Room emite una nueva lista.
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -53,10 +57,18 @@ fun ConfigScreen(viewModel: ConfigViewModel = koinViewModel()) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Configuración local",
-                    style = MaterialTheme.typography.headlineSmall
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = { navController.popBackStack() }
+                    ) { Text("Volver") }
+                    Text(
+                        text = "Configuración local",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                }
                 TextButton(
                     onClick = { showDeleteAllDialog = true },
                     enabled = state.items.isNotEmpty()

@@ -9,6 +9,7 @@ import edu.ucb.project.feature.auth.login.presentation.viewmodel.LoginViewModel
 import edu.ucb.project.feature.auth.login.presentation.screen.LoginScreen
 import edu.ucb.project.feature.weather.presentation.screen.WeatherScreen
 import edu.ucb.project.feature.notification.presentation.screen.NotificationScreen
+import edu.ucb.project.roomastruth.presentation.screen.ConfigScreen
 
 @Composable
 fun AppNavHost() {
@@ -36,6 +37,10 @@ fun AppNavHost() {
             NotificationScreen(
                 navController = navController
             )
+        }
+
+        composable<NavRoute.Configuration>{
+            ConfigScreen(navController = navController)
         }
     }
 }

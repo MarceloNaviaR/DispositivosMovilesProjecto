@@ -22,7 +22,8 @@ fun LoginContent(
     onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
-    onNotificationClick: () -> Unit = {}
+    onNotificationClick: () -> Unit = {},
+    onConfigurationClick: ()-> Unit={}
 ) {
     Column(
         modifier = Modifier
@@ -81,6 +82,10 @@ fun LoginContent(
             Text(
                 "IR A NOTIFICACIONES"
             )
+        }
+
+        OutlinedButton(onClick = onConfigurationClick){
+            Text("E25-2-Ir a Configuracion")
         }
     }
 }
