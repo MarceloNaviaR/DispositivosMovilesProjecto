@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import edu.ucb.project.feature.tareas.ActivityJobs
+import edu.ucb.project.feature.configremota.ConfigDashboardActivity
 
 class MainActivity : ComponentActivity() {
 
@@ -62,6 +63,19 @@ class MainActivity : ComponentActivity() {
                         )
                     ) {
                         Text("Abrir tareas — E50-5")
+                    }
+
+                    Button(
+                        onClick = {
+                            startActivity(
+                                Intent(
+                                    this@MainActivity,
+                                    ConfigDashboardActivity::class.java
+                                )
+                            )
+                        }
+                    ) {
+                        Text("Abrir Dashboard — E100-2")
                     }
 
                     Box(

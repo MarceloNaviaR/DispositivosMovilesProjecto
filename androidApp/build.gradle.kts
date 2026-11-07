@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.googleServices)
     alias(libs.plugins.google.protobuf)
+    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -22,6 +23,15 @@ dependencies {
     debugImplementation(libs.compose.uiTooling)
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
     implementation("com.google.firebase:firebase-firestore")
+
+    implementation("com.google.firebase:firebase-config")
+    implementation("com.google.firebase:firebase-database")
+
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.kotlinx.coroutines.core)
+
+    implementation("androidx.room:room-runtime:2.8.4")
+    add("ksp", "androidx.room:room-compiler:2.8.4")
 
     implementation(libs.compose.runtime)
     implementation(libs.compose.foundation)
