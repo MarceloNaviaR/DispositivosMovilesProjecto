@@ -1,6 +1,8 @@
+
 package edu.ucb.project.feature.configremota
 
 import android.content.Context
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -12,6 +14,8 @@ import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
 object ConfigScheduler {
+
+    private const val TAG = "CONFIG_SYNC"
 
     const val WORK_UNICO = "config_sync_manual"
     const val WORK_PERIODICO = "config_sync_periodico"
@@ -33,16 +37,27 @@ object ConfigScheduler {
                     30,
                     TimeUnit.SECONDS
                 )
+                .addTag("CONFIG_PERIODICO")
                 .build()
 
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                WORK_PERIODICO,
-                ExistingPeriodicWorkPolicy.KEEP,
-                request
-            )
+        WorkManager.getInstance(
+            context.applicationContext
+        ).enqueueUniquePeriodicWork(
+            WORK_PERIODICO,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+
+        Log.d(
+            TAG,
+            "Sincronizacion periodica registrada"
+        )
     }
 
+    // Metodo disponible para sincronizaciones
+    // manuales desde otros componentes.
+    // El Dashboard actual llama directamente
+    // al repositorio y no necesita este metodo.
     fun sincronizarAhora(context: Context) {
 
         val request =
@@ -53,13 +68,29 @@ object ConfigScheduler {
                     30,
                     TimeUnit.SECONDS
                 )
+                .addTag("CONFIG_MANUAL")
                 .build()
 
-        WorkManager.getInstance(context)
-            .enqueueUniqueWork(
-                WORK_UNICO,
-                ExistingWorkPolicy.KEEP,
-                request
-            )
+        WorkManager.getInstance(
+            context.applicationContext
+        ).enqueueUniqueWork(
+            WORK_UNICO,
+            ExistingWorkPolicy.KEEP,
+            request
+        )
+
+        Log.d(
+            TAG,
+            "Trabajo manual solicitado mediante WorkManager"
+        )
+    }
+
+    // Cancela solicitudes manuales antiguas
+    // que pudieron quedar de versiones previas.
+    fun cancelarManualAnterior(context: Context) {
+
+        WorkManager.getInstance(
+            context.applicationContext
+        ).cancelUniqueWork(WORK_UNICO)
     }
 }
