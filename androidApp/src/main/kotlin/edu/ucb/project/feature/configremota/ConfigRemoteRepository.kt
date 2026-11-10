@@ -2,6 +2,7 @@
 package edu.ucb.project.feature.configremota
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.firebase.Timestamp
@@ -13,27 +14,28 @@ import com.google.firebase.database.Transaction
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
+import java.security.MessageDigest
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class ConfigRemoteRepository(
-    context: Context
-) {
+class ConfigRemoteRepository(context: Context) {
 
     companion object {
         private const val TAG = "CONFIG_SYNC"
         private val mutex = Mutex()
+
+        private const val RTDB_URL =
+            "https://dispositivos-moviles-23f66-default-rtdb.firebaseio.com"
     }
 
     private val appContext = context.applicationContext
 
-    private val dao =
-        ConfigDatabase.getDatabase(appContext).configDao()
+    private val dao = ConfigDatabase
+        .getDatabase(appContext)
+        .configDao()
 
     private val remoteConfig =
         FirebaseRemoteConfig.getInstance()
@@ -41,46 +43,112 @@ class ConfigRemoteRepository(
     private val firestore =
         FirebaseFirestore.getInstance()
 
-    private val database = FirebaseDatabase.getInstance(
-        "https://dispositivos-moviles-23f66-default-rtdb.firebaseio.com"
-    )
+    private val database =
+        FirebaseDatabase.getInstance(RTDB_URL)
 
-    private val prefs = appContext.getSharedPreferences(
-        "config_remota_preferences",
-        Context.MODE_PRIVATE
-    )
+    // Sincronizacion inicial y periodica de WorkManager.
+    suspend fun sincronizar(): Int {
 
-    private val deviceId: String
-        get() {
-            val existing = prefs.getString("device_id", null)
+        val solicitud = SystemClock.elapsedRealtime()
 
-            if (existing != null) {
-                return existing
-            }
+        Log.d(
+            TAG,
+            "SYNC_INICIAL solicitada; mutex=${mutex.isLocked}"
+        )
 
-            val nuevo = UUID.randomUUID().toString()
+        return mutex.withLock {
 
-            prefs.edit()
-                .putString("device_id", nuevo)
-                .apply()
+            val inicio = SystemClock.elapsedRealtime()
 
-            return nuevo
+            Log.d(
+                TAG,
+                "TIEMPO_ESPERA_MUTEX_INICIAL=" +
+                        "${inicio - solicitud} ms"
+            )
+
+            val inicioConfig = SystemClock.elapsedRealtime()
+
+            configurarRemoteConfig()
+
+            Log.d(
+                TAG,
+                "TIEMPO_CONFIG_RC=" +
+                        "${SystemClock.elapsedRealtime() - inicioConfig} ms"
+            )
+
+            val inicioFetch = SystemClock.elapsedRealtime()
+
+            remoteConfig.fetchAndActivate().awaitTask()
+
+            Log.d(
+                TAG,
+                "TIEMPO_FETCH_RC=" +
+                        "${SystemClock.elapsedRealtime() - inicioFetch} ms"
+            )
+
+            val resultado = procesarValoresActivos()
+
+            Log.d(
+                TAG,
+                "TIEMPO_TOTAL_SYNC_INICIAL=" +
+                        "${SystemClock.elapsedRealtime() - inicio} ms"
+            )
+
+            resultado
         }
+    }
 
-    suspend fun sincronizar(): Int = mutex.withLock {
+    // Se utiliza al recibir un cambio del listener.
+    suspend fun procesarActualizacionRecibida(): Int {
 
-        Log.d(TAG, "================================")
-        Log.d(TAG, "INICIO SINCRONIZACION E100-2")
-        Log.d(TAG, "================================")
+        val solicitud = SystemClock.elapsedRealtime()
 
-        // 1. Configuracion para pruebas.
+        Log.d(
+            TAG,
+            "SYNC_LISTENER solicitada; mutex=${mutex.isLocked}"
+        )
+
+        return mutex.withLock {
+
+            val inicio = SystemClock.elapsedRealtime()
+
+            Log.d(
+                TAG,
+                "TIEMPO_ESPERA_MUTEX_LISTENER=" +
+                        "${inicio - solicitud} ms"
+            )
+
+            val inicioActivate = SystemClock.elapsedRealtime()
+
+            remoteConfig.activate().awaitTask()
+
+            Log.d(
+                TAG,
+                "TIEMPO_ACTIVATE_RC=" +
+                        "${SystemClock.elapsedRealtime() - inicioActivate} ms"
+            )
+
+            val resultado = procesarValoresActivos()
+
+            Log.d(
+                TAG,
+                "TIEMPO_TOTAL_SYNC_LISTENER=" +
+                        "${SystemClock.elapsedRealtime() - inicio} ms"
+            )
+
+            resultado
+        }
+    }
+
+    private suspend fun configurarRemoteConfig() {
+
         remoteConfig.setConfigSettingsAsync(
             FirebaseRemoteConfigSettings.Builder()
+                // Solo para pruebas.
                 .setMinimumFetchIntervalInSeconds(0L)
                 .build()
         ).awaitTask()
 
-        // 2. Valores predeterminados de respaldo.
         remoteConfig.setDefaultsAsync(
             mapOf(
                 "mensaje" to "Bienvenido al dashboard",
@@ -88,45 +156,12 @@ class ConfigRemoteRepository(
                 "feature_enabled" to false
             )
         ).awaitTask()
+    }
 
-        // 3. Descargar los ultimos valores disponibles.
-        // Un intervalo de cero NO elimina los limites
-        // de solicitudes impuestos por Firebase.
-        try {
+    private suspend fun procesarValoresActivos(): Int {
 
-            remoteConfig.fetch(0L).awaitTask()
+        val inicio = SystemClock.elapsedRealtime()
 
-            Log.d(
-                TAG,
-                "Descarga Remote Config completada"
-            )
-
-        } catch (e: CancellationException) {
-            throw e
-
-        } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "No se pudo descargar Remote Config",
-                e
-            )
-
-            // No presentar una descarga fallida
-            // como una sincronizacion nueva.
-            throw e
-        }
-
-        // 4. Activar la configuracion descargada.
-        val activado =
-            remoteConfig.activate().awaitTask()
-
-        Log.d(
-            TAG,
-            "Valores nuevos activados: $activado"
-        )
-
-        // 5. Obtener los parametros.
         val valorMensaje =
             remoteConfig.getValue("mensaje")
 
@@ -139,172 +174,161 @@ class ConfigRemoteRepository(
         val origenRemoto =
             FirebaseRemoteConfig.VALUE_SOURCE_REMOTE
 
-        // 6. Mostrar informacion real de Firebase.
-        val info = remoteConfig.info
+        val ultima = dao.obtenerUltima()
 
         Log.d(TAG, "========== REMOTE CONFIG ==========")
 
         Log.d(
             TAG,
-            "RC mensaje=${valorMensaje.asString()} " +
+            "Mensaje RC=${valorMensaje.asString()}, " +
                     "origen=${valorMensaje.source}"
         )
 
         Log.d(
             TAG,
-            "RC limite=${valorLimite.asString()} " +
+            "Limite RC=${valorLimite.asString()}, " +
                     "origen=${valorLimite.source}"
         )
 
         Log.d(
             TAG,
-            "RC feature_enabled=${valorBooleano.asString()} " +
+            "Booleano RC=${valorBooleano.asString()}, " +
                     "origen=${valorBooleano.source}"
         )
 
-        Log.d(
-            TAG,
-            "Estado fetch=${info.lastFetchStatus}"
-        )
-
-        Log.d(
-            TAG,
-            "Fecha fetch=${info.fetchTimeMillis}"
-        )
-
-        Log.d(
-            TAG,
-            "Parametros disponibles=${remoteConfig.all.keys}"
-        )
-
-        // 7. Leer la ultima version guardada en Room.
-        val ultima = dao.obtenerUltima()
-
-        // 8. Utilizar el valor remoto cuando existe.
-        // Si un parametro no llega remotamente,
-        // conservar su ultimo valor local conocido.
-        val mensaje = if (
+        val mensajeRemoto =
             valorMensaje.source == origenRemoto
+
+        val limiteRemoto =
+            valorLimite.source == origenRemoto
+
+        val booleanoRemoto =
+            valorBooleano.source == origenRemoto
+
+        // En la primera sincronizacion se requieren
+        // los tres parametros publicados.
+        if (
+            ultima == null &&
+            !(mensajeRemoto && limiteRemoto && booleanoRemoto)
         ) {
-            valorMensaje.asString()
-        } else {
             Log.w(
                 TAG,
-                "mensaje no tiene origen remoto"
+                "Primera configuracion remota incompleta"
             )
+
+            return sincronizarPendientes()
+        }
+
+        // Conservar el ultimo valor de Room cuando
+        // alguno de los parametros no sea remoto.
+        val mensaje = if (mensajeRemoto) {
+            valorMensaje.asString()
+        } else {
             ultima?.mensaje ?: valorMensaje.asString()
         }
 
-        val limiteLong = if (
-            valorLimite.source == origenRemoto
-        ) {
+        val limiteLong = if (limiteRemoto) {
             valorLimite.asLong()
         } else {
-            Log.w(
-                TAG,
-                "limite no tiene origen remoto"
-            )
-            ultima?.limite?.toLong()
-                ?: valorLimite.asLong()
+            ultima?.limite?.toLong() ?: valorLimite.asLong()
         }
 
         require(
             limiteLong in Int.MIN_VALUE.toLong()..
                     Int.MAX_VALUE.toLong()
         ) {
-            "El limite excede el rango Int"
+            "Limite fuera del rango permitido"
         }
 
         val limite = limiteLong.toInt()
 
-        // Este valor reconoce true y false.
-        // No se obliga artificialmente a ninguno.
-        val enabled = if (
-            valorBooleano.source == origenRemoto
-        ) {
+        val enabled = if (booleanoRemoto) {
             valorBooleano.asBoolean()
         } else {
-            Log.w(
-                TAG,
-                "feature_enabled no tiene origen remoto"
-            )
-            ultima?.featureEnabled
-                ?: valorBooleano.asBoolean()
+            ultima?.featureEnabled ?: valorBooleano.asBoolean()
         }
 
-        Log.d(TAG, "========== VALORES ELEGIDOS ==========")
-
-        Log.d(TAG, "Mensaje: $mensaje")
-        Log.d(TAG, "Limite: $limite")
-        Log.d(TAG, "Booleano: $enabled")
-
-        Log.d(
-            TAG,
-            "Booleano anterior: ${ultima?.featureEnabled}"
-        )
-
-        // 9. Detectar si cada parametro cambio.
         val cambioMensaje =
-            ultima == null ||
-                    ultima.mensaje != mensaje
+            ultima == null || ultima.mensaje != mensaje
 
         val cambioLimite =
-            ultima == null ||
-                    ultima.limite != limite
+            ultima == null || ultima.limite != limite
 
         val cambioBooleano =
-            ultima == null ||
-                    ultima.featureEnabled != enabled
+            ultima == null || ultima.featureEnabled != enabled
 
         val hayCambio =
-            cambioMensaje ||
-                    cambioLimite ||
-                    cambioBooleano
+            cambioMensaje || cambioLimite || cambioBooleano
 
         Log.d(TAG, "========== COMPARACION ==========")
 
-        Log.d(
-            TAG,
-            "Cambio mensaje: $cambioMensaje"
-        )
+        Log.d(TAG, "Cambio mensaje=$cambioMensaje")
+        Log.d(TAG, "Cambio limite=$cambioLimite")
+        Log.d(TAG, "Cambio booleano=$cambioBooleano")
 
         Log.d(
             TAG,
-            "Cambio limite: $cambioLimite"
+            "Booleano anterior=${ultima?.featureEnabled}, " +
+                    "nuevo=$enabled"
         )
 
-        Log.d(
-            TAG,
-            "Cambio booleano: $cambioBooleano"
-        )
-
-        // 10. Guardar nueva version solamente
-        // cuando alguno de los valores cambio.
         if (hayCambio) {
 
-            val nuevaConfig = ConfigVersionEntity(
+            val nueva = ConfigVersionEntity(
                 mensaje = mensaje,
                 limite = limite,
                 featureEnabled = enabled
             )
 
-            val id = dao.insertar(nuevaConfig)
+            val inicioRoom = SystemClock.elapsedRealtime()
+
+            val id = dao.insertar(nueva)
 
             Log.d(
                 TAG,
-                "Nueva version Room: $id"
+                "TIEMPO_ROOM_INSERT=" +
+                        "${SystemClock.elapsedRealtime() - inicioRoom} ms"
+            )
+
+            Log.d(
+                TAG,
+                "Nueva configuracion Room ID=$id"
             )
 
         } else {
 
-            Log.d(
-                TAG,
-                "No existen cambios nuevos"
-            )
+            Log.d(TAG, "Sin cambios nuevos")
         }
 
-        // 11. Procesar los pendientes.
-        sincronizarPendientes()
+        val resultado = sincronizarPendientes()
+
+        Log.d(
+            TAG,
+            "TIEMPO_PROCESAR_VALORES=" +
+                    "${SystemClock.elapsedRealtime() - inicio} ms"
+        )
+
+        return resultado
+    }
+
+    // Identifica una combinacion de valores.
+    private fun huellaConfiguracion(
+        config: ConfigVersionEntity
+    ): String {
+
+        val contenido = listOf(
+            config.mensaje,
+            config.limite.toString(),
+            config.featureEnabled.toString()
+        ).joinToString("\u0000")
+
+        val bytes = MessageDigest
+            .getInstance("SHA-256")
+            .digest(contenido.toByteArray(Charsets.UTF_8))
+
+        return bytes.joinToString("") { byte ->
+            "%02x".format(byte.toInt() and 0xff)
+        }
     }
 
     private suspend fun sincronizarPendientes(): Int {
@@ -313,30 +337,39 @@ class ConfigRemoteRepository(
 
         Log.d(
             TAG,
-            "Versiones pendientes: ${pendientes.size}"
+            "Versiones pendientes=${pendientes.size}"
         )
 
-        var cambios = 0
+        var procesadas = 0
 
         for (config in pendientes) {
 
-            val eventId = "${deviceId}_${config.id}"
+            val inicioPendiente =
+                SystemClock.elapsedRealtime()
+
+            val huella = huellaConfiguracion(config)
 
             Log.d(
                 TAG,
-                "Procesando configuracion ID ${config.id}"
+                "Procesando Room ID=${config.id}"
             )
 
-            // 12. Generar version en RTDB.
-            // El mismo evento no suma dos veces.
-            val version = incrementarVersion(eventId)
+            val inicioRTDB =
+                SystemClock.elapsedRealtime()
+
+            val version = obtenerVersionGlobal(huella)
 
             Log.d(
                 TAG,
-                "Version obtenida RTDB: $version"
+                "TIEMPO_RTDB=" +
+                        "${SystemClock.elapsedRealtime() - inicioRTDB} ms"
             )
 
-            // 13. Construir datos de Firestore.
+            Log.d(
+                TAG,
+                "Version global RTDB=$version"
+            )
+
             val datos = hashMapOf<String, Any>(
                 "mensaje" to config.mensaje,
                 "limite" to config.limite,
@@ -344,16 +377,18 @@ class ConfigRemoteRepository(
                 "version" to version,
                 "timestamp" to config.timestamp,
                 "actualizadoEn" to Timestamp.now(),
-                "eventId" to eventId
+                "eventId" to huella,
+                "huella" to huella
             )
 
             val referencia = firestore
                 .collection("configRemota")
                 .document("actual")
 
-            // 14. Escribir solamente si la version
-            // es superior a la almacenada en Firestore.
-            val actualizado = firestore.runTransaction {
+            val inicioFirestore =
+                SystemClock.elapsedRealtime()
+
+            val resultado = firestore.runTransaction {
                     transaction ->
 
                 val documento = transaction.get(referencia)
@@ -361,99 +396,102 @@ class ConfigRemoteRepository(
                 val versionActual =
                     documento.getLong("version") ?: 0L
 
+                val huellaActual =
+                    documento.getString("huella")
+                        ?: documento.getString("eventId")
+
                 Log.d(
                     TAG,
-                    "Versiones: RTDB=$version, " +
-                            "Firestore=$versionActual"
+                    "Comparacion versiones: " +
+                            "RTDB=$version, Firestore=$versionActual"
                 )
 
-                if (version > versionActual) {
+                when {
 
-                    transaction.set(referencia, datos)
-                    true
+                    version > versionActual -> {
 
-                } else {
+                        transaction.set(referencia, datos)
 
-                    false
+                        "ACTUALIZADO"
+                    }
+
+                    version == versionActual &&
+                            huellaActual == huella -> {
+
+                        "EXISTENTE"
+                    }
+
+                    version < versionActual -> {
+
+                        "ANTIGUO"
+                    }
+
+                    else -> {
+
+                        throw IllegalStateException(
+                            "Conflicto de version $version"
+                        )
+                    }
                 }
             }.awaitTask()
 
-            if (actualizado) {
+            Log.d(
+                TAG,
+                "TIEMPO_FIRESTORE=" +
+                        "${SystemClock.elapsedRealtime() - inicioFirestore} ms"
+            )
 
-                Log.d(
-                    TAG,
-                    "Firestore actualizado a version $version"
-                )
+            Log.d(
+                TAG,
+                "Resultado Firestore=$resultado"
+            )
 
-                Log.d(
-                    TAG,
-                    "Mensaje Firestore: ${config.mensaje}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Limite Firestore: ${config.limite}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Booleano Firestore: ${config.featureEnabled}"
-                )
-
-            } else {
-
-                Log.w(
-                    TAG,
-                    "Version $version omitida porque " +
-                            "Firestore posee una version igual o mayor"
-                )
-
-                // No marcar como sincronizado cuando
-                // Firestore indica una inconsistencia
-                // de versiones. Asi podremos revisarla.
-                throw IllegalStateException(
-                    "Conflicto de versiones: " +
-                            "RTDB=$version. " +
-                            "Revisa el contador de Firestore."
-                )
-            }
-
-            // 15. Marcar la version como sincronizada.
             dao.marcarSincronizada(
                 config.id,
                 version
             )
 
-            // 16. Generar notificacion.
             if (!config.notified) {
 
-                ConfigNotification.mostrar(
-                    appContext,
-                    version
-                )
+                if (
+                    resultado == "ACTUALIZADO" ||
+                    resultado == "EXISTENTE"
+                ) {
+                    ConfigNotification.mostrar(
+                        appContext,
+                        version
+                    )
+
+                    Log.d(
+                        TAG,
+                        "Notificacion version $version solicitada"
+                    )
+                }
 
                 dao.marcarNotificada(config.id)
-
-                Log.d(
-                    TAG,
-                    "Notificacion procesada para version $version"
-                )
             }
 
-            cambios++
+            procesadas++
+
+            Log.d(
+                TAG,
+                "TIEMPO_TOTAL_PENDIENTE=" +
+                        "${SystemClock.elapsedRealtime() - inicioPendiente} ms"
+            )
         }
 
-        Log.d(TAG, "================================")
-        Log.d(TAG, "SINCRONIZACION COMPLETADA")
-        Log.d(TAG, "Cambios procesados: $cambios")
-        Log.d(TAG, "================================")
+        Log.d(
+            TAG,
+            "Sincronizacion finalizada. Procesadas=$procesadas"
+        )
 
-        return cambios
+        return procesadas
     }
 
-    // Incrementar contador RTDB sin duplicar eventos.
-    private suspend fun incrementarVersion(
-        eventId: String
+    // Asigna una misma version global a configuraciones
+    // con los mismos valores, incluso entre dispositivos.
+    private suspend fun obtenerVersionGlobal(
+        huella: String
     ): Long = suspendCancellableCoroutine { continuation ->
 
         val referencia = database.getReference("config")
@@ -465,11 +503,15 @@ class ConfigRemoteRepository(
                     currentData: MutableData
                 ): Transaction.Result {
 
-                    val procesado = currentData
-                        .child("procesadas")
-                        .child(eventId)
+                    val huellas =
+                        currentData.child("huellas")
 
-                    if (procesado.value != null) {
+                    val existente = (
+                            huellas.child(huella).value
+                                    as? Number
+                            )?.toLong()
+
+                    if (existente != null) {
                         return Transaction.success(currentData)
                     }
 
@@ -483,7 +525,8 @@ class ConfigRemoteRepository(
                     currentData.child("versiones").value =
                         siguiente
 
-                    procesado.value = siguiente
+                    huellas.child(huella).value =
+                        siguiente
 
                     return Transaction.success(currentData)
                 }
@@ -500,12 +543,6 @@ class ConfigRemoteRepository(
 
                     if (error != null) {
 
-                        Log.e(
-                            TAG,
-                            "Error RTDB",
-                            error.toException()
-                        )
-
                         continuation.resumeWithException(
                             error.toException()
                         )
@@ -517,17 +554,19 @@ class ConfigRemoteRepository(
 
                         continuation.resumeWithException(
                             IllegalStateException(
-                                "No se pudo actualizar RTDB"
+                                "Transaccion RTDB no confirmada"
                             )
                         )
 
                         return
                     }
 
-                    val version = snapshot
-                        .child("procesadas")
-                        .child(eventId)
-                        .getValue(Long::class.java)
+                    val version = (
+                            snapshot
+                                .child("huellas")
+                                .child(huella)
+                                .value as? Number
+                            )?.toLong()
 
                     if (version != null) {
 
@@ -537,7 +576,7 @@ class ConfigRemoteRepository(
 
                         continuation.resumeWithException(
                             IllegalStateException(
-                                "No se obtuvo la version RTDB"
+                                "No se obtuvo version global"
                             )
                         )
                     }
@@ -547,7 +586,7 @@ class ConfigRemoteRepository(
     }
 }
 
-// Adaptador Task Firebase a corrutinas.
+// Convierte Task de Firebase a una funcion suspend.
 private suspend fun <T> Task<T>.awaitTask(): T =
     suspendCancellableCoroutine { continuation ->
 

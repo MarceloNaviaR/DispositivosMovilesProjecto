@@ -6,9 +6,7 @@ import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -17,8 +15,11 @@ object ConfigScheduler {
 
     private const val TAG = "CONFIG_SYNC"
 
-    const val WORK_UNICO = "config_sync_manual"
     const val WORK_PERIODICO = "config_sync_periodico"
+
+    // Nombre del trabajo manual de las versiones anteriores.
+    private const val WORK_MANUAL_ANTIGUO =
+        "config_sync_manual"
 
     private val constraints = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -54,43 +55,16 @@ object ConfigScheduler {
         )
     }
 
-    // Metodo disponible para sincronizaciones
-    // manuales desde otros componentes.
-    // El Dashboard actual llama directamente
-    // al repositorio y no necesita este metodo.
-    fun sincronizarAhora(context: Context) {
-
-        val request =
-            OneTimeWorkRequestBuilder<ConfigSyncWorker>()
-                .setConstraints(constraints)
-                .setBackoffCriteria(
-                    BackoffPolicy.EXPONENTIAL,
-                    30,
-                    TimeUnit.SECONDS
-                )
-                .addTag("CONFIG_MANUAL")
-                .build()
-
-        WorkManager.getInstance(
-            context.applicationContext
-        ).enqueueUniqueWork(
-            WORK_UNICO,
-            ExistingWorkPolicy.KEEP,
-            request
-        )
-
-        Log.d(
-            TAG,
-            "Trabajo manual solicitado mediante WorkManager"
-        )
-    }
-
-    // Cancela solicitudes manuales antiguas
-    // que pudieron quedar de versiones previas.
+    // Limpiar los trabajos manuales antiguos.
     fun cancelarManualAnterior(context: Context) {
 
         WorkManager.getInstance(
             context.applicationContext
-        ).cancelUniqueWork(WORK_UNICO)
+        ).cancelUniqueWork(WORK_MANUAL_ANTIGUO)
+
+        Log.d(
+            TAG,
+            "Trabajo manual anterior cancelado"
+        )
     }
 }

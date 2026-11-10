@@ -8,6 +8,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 
 import androidx.activity.ComponentActivity
@@ -22,6 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+
+import com.google.firebase.remoteconfig.ConfigUpdate
+import com.google.firebase.remoteconfig.ConfigUpdateListener
+import com.google.firebase.remoteconfig.ConfigUpdateListenerRegistration
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigException
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -38,14 +45,22 @@ class ConfigDashboardActivity : ComponentActivity() {
     }
 
     private val estadoTrabajo = mutableStateOf(
-        "Esperando sincronizacion"
+        "Esperando configuracion remota"
     )
 
     private val sincronizando = mutableStateOf(false)
 
     private val conectado = mutableStateOf(false)
 
-    private var trabajoManual: Job? = null
+    private var trabajoInicial: Job? = null
+
+    private var registroListener:
+            ConfigUpdateListenerRegistration? = null
+
+    private lateinit var repository: ConfigRemoteRepository
+
+    private val remoteConfig =
+        FirebaseRemoteConfig.getInstance()
 
     private val permisoNotificaciones =
         registerForActivityResult(
@@ -63,15 +78,19 @@ class ConfigDashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        repository = ConfigRemoteRepository(
+            applicationContext
+        )
+
         solicitarPermiso()
 
-        // Mantener sincronizacion automatica.
+        // Programar sincronizacion automatica
+        // mediante WorkManager cada 15 minutos.
         ConfigScheduler.programarPeriodico(
             applicationContext
         )
 
-        // Limpiar trabajos manuales antiguos
-        // de las versiones anteriores del Dashboard.
+        // Cancelar trabajos manuales antiguos.
         ConfigScheduler.cancelarManualAnterior(
             applicationContext
         )
@@ -99,9 +118,7 @@ class ConfigDashboardActivity : ComponentActivity() {
                     )
 
                 val estado by estadoTrabajo
-
                 val cargando by sincronizando
-
                 val hayInternet by conectado
 
                 DashboardScreen(
@@ -109,27 +126,163 @@ class ConfigDashboardActivity : ComponentActivity() {
                     historial = historial,
                     conectado = hayInternet,
                     estado = estado,
-                    sincronizando = cargando,
-                    onSincronizar = {
-                        sincronizarManual()
-                    }
+                    sincronizando = cargando
                 )
             }
         }
-
-        // Sincronizar una vez al abrir.
-        sincronizarManual()
     }
 
-    private fun sincronizarManual() {
+    override fun onStart() {
+        super.onStart()
 
-        if (trabajoManual?.isActive == true) {
+        conectado.value = tieneInternet()
 
-            Log.d(
-                TAG,
-                "Ya existe una sincronizacion activa"
+        iniciarListener()
+        sincronizarInicial()
+    }
+
+    override fun onStop() {
+
+        registroListener?.remove()
+        registroListener = null
+
+        Log.d(
+            TAG,
+            "Listener remoto detenido"
+        )
+
+        super.onStop()
+    }
+
+    private fun iniciarListener() {
+
+        if (registroListener != null) {
+            return
+        }
+
+        Log.d(
+            TAG,
+            "Iniciando escucha de Remote Config"
+        )
+
+        registroListener =
+            remoteConfig.addOnConfigUpdateListener(
+                object : ConfigUpdateListener {
+
+                    override fun onUpdate(
+                        configUpdate: ConfigUpdate
+                    ) {
+
+                        val recibido =
+                            SystemClock.elapsedRealtime()
+
+                        val claves = configUpdate.updatedKeys
+
+                        Log.d(
+                            TAG,
+                            "LISTENER_RECIBIO_ACTUALIZACION " +
+                                    "hora=${System.currentTimeMillis()} " +
+                                    "claves=$claves"
+                        )
+
+                        val importantes = setOf(
+                            "mensaje",
+                            "limite",
+                            "feature_enabled"
+                        )
+
+                        if (claves.none { it in importantes }) {
+                            return
+                        }
+
+                        lifecycleScope.launch {
+
+                            sincronizando.value = true
+
+                            estadoTrabajo.value =
+                                "Cambio detectado. Actualizando..."
+
+                            val inicioProcesamiento =
+                                SystemClock.elapsedRealtime()
+
+                            Log.d(
+                                TAG,
+                                "TIEMPO_DESPACHO_LISTENER=" +
+                                        "${inicioProcesamiento - recibido} ms"
+                            )
+
+                            try {
+
+                                val cambios = repository
+                                    .procesarActualizacionRecibida()
+
+                                estadoTrabajo.value =
+                                    if (cambios > 0) {
+                                        "Configuracion actualizada"
+                                    } else {
+                                        "Configuracion verificada"
+                                    }
+
+                                Log.d(
+                                    TAG,
+                                    "TIEMPO_TOTAL_DESDE_EVENTO=" +
+                                            "${SystemClock.elapsedRealtime() - recibido} ms"
+                                )
+
+                                Log.d(
+                                    TAG,
+                                    "Actualizacion automatica completada"
+                                )
+
+                            } catch (e: CancellationException) {
+
+                                throw e
+
+                            } catch (e: Exception) {
+
+                                estadoTrabajo.value =
+                                    "Error: ${
+                                        e.message
+                                            ?: "No se pudo actualizar"
+                                    }"
+
+                                Log.e(
+                                    TAG,
+                                    "Error procesando cambio remoto",
+                                    e
+                                )
+
+                            } finally {
+
+                                sincronizando.value = false
+                                conectado.value = tieneInternet()
+                            }
+                        }
+                    }
+
+                    override fun onError(
+                        error: FirebaseRemoteConfigException
+                    ) {
+
+                        Log.e(
+                            TAG,
+                            "Error del listener Remote Config",
+                            error
+                        )
+
+                        runOnUiThread {
+                            estadoTrabajo.value =
+                                "Error de escucha remota: " +
+                                        error.message
+                        }
+                    }
+                }
             )
+    }
 
+    private fun sincronizarInicial() {
+
+        if (trabajoInicial?.isActive == true) {
             return
         }
 
@@ -138,86 +291,54 @@ class ConfigDashboardActivity : ComponentActivity() {
         if (!conectado.value) {
 
             estadoTrabajo.value =
-                "Sin conexion: mostrando datos de Room"
-
-            Log.w(
-                TAG,
-                "Sin conexion disponible"
-            )
+                "Sin conexion: mostrando cache Room"
 
             return
         }
 
-        trabajoManual = lifecycleScope.launch {
+        trabajoInicial = lifecycleScope.launch {
 
             sincronizando.value = true
 
             estadoTrabajo.value =
-                "Consultando Firebase Remote Config..."
+                "Consultando configuracion inicial..."
 
             try {
-
-                Log.d(
-                    TAG,
-                    "SINCRONIZACION MANUAL INICIADA"
-                )
-
-                // El boton ejecuta el repositorio
-                // sin esperar una cola de WorkManager.
-                val repository = ConfigRemoteRepository(
-                    applicationContext
-                )
 
                 val cambios = repository.sincronizar()
 
                 estadoTrabajo.value =
                     if (cambios > 0) {
-
-                        "Sincronizacion completa: " +
-                                "$cambios version(es) procesada(s)"
-
+                        "Configuracion sincronizada"
                     } else {
-
-                        "Sincronizacion completa: " +
-                                "sin cambios nuevos"
+                        "Configuracion al dia. Escuchando cambios..."
                     }
 
                 Log.d(
                     TAG,
-                    "Sincronizacion manual finalizada"
-                )
-
-                Log.d(
-                    TAG,
-                    "Cambios procesados: $cambios"
+                    "Carga inicial finalizada: $cambios"
                 )
 
             } catch (e: CancellationException) {
-
-                Log.w(
-                    TAG,
-                    "Sincronizacion cancelada"
-                )
 
                 throw e
 
             } catch (e: Exception) {
 
                 estadoTrabajo.value =
-                    "Error: ${
-                        e.message ?: "No se pudo sincronizar"
+                    "Error inicial: ${
+                        e.message ?: "Sin conexion con Firebase"
                     }"
 
                 Log.e(
                     TAG,
-                    "ERROR EN SINCRONIZACION MANUAL",
+                    "Error en carga inicial",
                     e
                 )
 
             } finally {
 
                 sincronizando.value = false
-
                 conectado.value = tieneInternet()
             }
         }
@@ -272,8 +393,7 @@ private fun DashboardScreen(
     historial: List<ConfigVersionEntity>,
     conectado: Boolean,
     estado: String,
-    sincronizando: Boolean,
-    onSincronizar: () -> Unit
+    sincronizando: Boolean
 ) {
 
     Column(
@@ -314,45 +434,27 @@ private fun DashboardScreen(
             modifier = Modifier.height(8.dp)
         )
 
-        Text(
-            text = estado,
-            style = MaterialTheme.typography.bodySmall
-        )
+        if (sincronizando) {
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Button(
-            onClick = onSincronizar,
-            enabled = !sincronizando,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            if (sincronizando) {
-
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-
-                Spacer(
-                    modifier = Modifier.width(10.dp)
-                )
-
-                Text("Sincronizando...")
-
-            } else {
-
-                Text("Sincronizar Remote Config")
-            }
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
+        Text(
+            text = estado,
+            style = MaterialTheme.typography.bodyMedium
         )
 
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        // No hay boton de sincronizacion.
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -372,13 +474,9 @@ private fun DashboardScreen(
 
                 if (ultima != null) {
 
-                    Text(
-                        "Mensaje: ${ultima.mensaje}"
-                    )
+                    Text("Mensaje: ${ultima.mensaje}")
 
-                    Text(
-                        "Limite: ${ultima.limite}"
-                    )
+                    Text("Limite: ${ultima.limite}")
 
                     Text(
                         "Feature enabled: ${ultima.featureEnabled}"
@@ -394,9 +492,7 @@ private fun DashboardScreen(
                     )
 
                     Text(
-                        "Fecha: ${
-                            formatearFecha(ultima.timestamp)
-                        }"
+                        "Fecha: ${formatearFecha(ultima.timestamp)}"
                     )
 
                     if (!conectado) {
@@ -413,9 +509,7 @@ private fun DashboardScreen(
 
                 } else {
 
-                    Text(
-                        "No hay configuracion guardada"
-                    )
+                    Text("No hay configuracion guardada")
                 }
             }
         }
@@ -508,7 +602,5 @@ private fun formatearFecha(
         Locale.getDefault()
     )
 
-    return formato.format(
-        Date(timestamp)
-    )
+    return formato.format(Date(timestamp))
 }

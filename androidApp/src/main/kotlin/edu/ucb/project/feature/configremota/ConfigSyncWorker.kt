@@ -24,7 +24,8 @@ class ConfigSyncWorker(
 
         Log.d(
             TAG,
-            "Worker iniciado. Intento ${runAttemptCount + 1}"
+            "Worker periodico iniciado. " +
+                    "Intento ${runAttemptCount + 1}"
         )
 
         return try {
@@ -37,29 +38,24 @@ class ConfigSyncWorker(
 
             Log.d(
                 TAG,
-                "Worker completado. Cambios: $cambios"
+                "Worker finalizado. Versiones: $cambios"
             )
 
             Result.success(
                 Data.Builder()
                     .putInt("cambios", cambios)
-                    .putString(
-                        "mensaje",
-                        "Sincronizacion correcta"
-                    )
                     .build()
             )
 
         } catch (e: CancellationException) {
 
-            Log.w(TAG, "Worker cancelado")
             throw e
 
         } catch (e: Exception) {
 
             Log.e(
                 TAG,
-                "Error en sincronizacion automatica",
+                "Error en sincronizacion periodica",
                 e
             )
 
@@ -68,57 +64,46 @@ class ConfigSyncWorker(
                         e.code ==
                         FirebaseFirestoreException.Code.PERMISSION_DENIED
 
-            val configuracionInvalida =
+            val errorConfiguracion =
                 e is IllegalArgumentException ||
                         e is IllegalStateException
 
-            val limitado =
-                e is FirebaseRemoteConfigFetchThrottledException
-
             when {
 
-                permisosFirestore || configuracionInvalida -> {
-                    fallar(e.message ?: "Error de configuracion")
+                permisosFirestore || errorConfiguracion -> {
+                    Result.failure(
+                        Data.Builder()
+                            .putString(
+                                "error",
+                                e.message ?: "Error de configuracion"
+                            )
+                            .build()
+                    )
                 }
 
-                limitado -> {
-                    Log.w(
-                        TAG,
-                        "Remote Config limito las descargas"
-                    )
-
+                e is FirebaseRemoteConfigFetchThrottledException -> {
                     if (runAttemptCount < MAX_INTENTOS - 1) {
                         Result.retry()
                     } else {
-                        fallar("Descargas limitadas por Firebase")
+                        Result.failure()
                     }
                 }
 
                 runAttemptCount < MAX_INTENTOS - 1 -> {
-                    Log.w(
-                        TAG,
-                        "Error temporal: reintento programado"
-                    )
                     Result.retry()
                 }
 
                 else -> {
-                    fallar(
-                        e.message ?: "Error desconocido"
+                    Result.failure(
+                        Data.Builder()
+                            .putString(
+                                "error",
+                                e.message ?: "Error desconocido"
+                            )
+                            .build()
                     )
                 }
             }
         }
-    }
-
-    private fun fallar(mensaje: String): Result {
-
-        Log.e(TAG, mensaje)
-
-        return Result.failure(
-            Data.Builder()
-                .putString("error", mensaje)
-                .build()
-        )
     }
 }
